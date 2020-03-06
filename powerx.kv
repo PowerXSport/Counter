@@ -1,0 +1,27 @@
+#:kivy 1.8.0
+
+<PowerXCounter>:
+        id: powerx
+        GridLayout:
+                row_default_height: root.height / 3
+                cols: 1
+                center_x: 60
+                size: root.size
+                BoxLayout:
+                        Label:
+                                font_size: root.height / 3
+                                text: powerx.weight
+                        Label:
+                                font_size: root.height / 3
+                                text: 'X'
+                        Label:
+                                font_size: root.height / 3
+                                text: powerx.counter
+                BoxLayout:
+                        Label:
+                                font_size: root.height / 3
+                                text: powerx.totalTons
+                BoxLayout:
+                        Label:
+                                font_size: root.height / 3
+                                text: powerx.timeRemaining
