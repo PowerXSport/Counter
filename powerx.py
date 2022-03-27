@@ -13,7 +13,10 @@ buttonPinNum = 16
 buzzerPinNum = 12
 
 totalSeconds = 60
+totalMilliseconds = totalSeconds * 1000
 maxReps = 0
+minWeight = 65
+maxWeight = 700
 
 def gpio_init():
 	GPIO.setmode(GPIO.BOARD)
@@ -23,21 +26,27 @@ def gpio_init():
 	GPIO.setup(buzzerPinNum, GPIO.OUT)
 
 
-def formatTime(time):
-	minutes = time / 60
-	seconds = time % 60
-	return "{0}:{1:02d}".format(minutes, seconds)
+def formatTime(time): #time is in milliseconds
+	minutes = int((time / (1000 * 60)) % 60)
+	seconds = int((time / 1000) % 60)
+	tenths = int((time % 1000) / 100)
+	
+	if time <= 60000:
+		seconds = int(time / 1000)
+		return "{0:02d}.{1}".format(seconds, tenths)
+	else:
+		return "{0}:{1:02d}".format(minutes, seconds)
 
 class PowerXCounter(GridLayout):
-	num = 0
-	totalTimeSeconds = totalSeconds
-	previousInput = 0
+	currentReps = 0
+	totalTimeMilliseconds = totalMilliseconds
+	prevBtnInput = 0
 
 	#PROPERTIES
-	timeRemaining = StringProperty(formatTime(totalTimeSeconds))
+	timeRemaining = StringProperty(formatTime(totalTimeMilliseconds))
 	counter = StringProperty("0")
 	totalTons = StringProperty("0")
-	weight = StringProperty("65")
+	weight = StringProperty(str(minWeight))
 
 	def __init__(self, **kwargs):
 		super(PowerXCounter, self).__init__(**kwargs)
@@ -46,13 +55,13 @@ class PowerXCounter(GridLayout):
 
 	def reset(self):
 		#GPIO / CLOCK RESET
-		Clock.unschedule(self.timer, 1)
+		Clock.unschedule(self.timer)
 		Clock.schedule_once(self.buzzeroff)
 
 		#RESETS VARS	
-		self.num = 0
-		self.totalTimeSeconds = totalSeconds
-		self.previousInput = GPIO.input(buttonPinNum)
+		self.currentReps = 0
+		self.totalTimeMilliseconds = totalMilliseconds
+		self.prevBtnInput = GPIO.input(buttonPinNum)
 		self.countdowninprogress = False
 		self.countdownnum = 3
 		self.buzzerlength = 1
@@ -60,46 +69,46 @@ class PowerXCounter(GridLayout):
 
 		#RESET LABELS
 		self.counter = "0"
-		self.timeRemaining = formatTime(totalSeconds)
-		self.weight = "65"
+		self.timeRemaining = formatTime(totalMilliseconds)
+		self.weight = str(minWeight)
 		self.totalTons = "0"
 
 	def checkInput(self, dt):
 		#COUNTER BUTTON PRESS
-		input = GPIO.input(buttonPinNum)
-		if input != self.previousInput:
-			self.previousInput = input
-	            	if not self.countdowninprogress:
+		btnInput = GPIO.input(buttonPinNum)
+		if btnInput != self.prevBtnInput:
+			self.prevBtnInput = btnInput
+			if not self.countdowninprogress:
 				self.click()
 		# +/- BUTTON PRESS
-		if not self.timerRunning and not self.countdowninprogress and self.num == 0:
-			plus = GPIO.input(plusButtonPinNum)
-			minus = GPIO.input(minusButtonPinNum)
+		if not self.timerRunning and not self.countdowninprogress and self.currentReps == 0:
+			plusBtn = GPIO.input(plusButtonPinNum)
+			minusBtn = GPIO.input(minusButtonPinNum)
 			w = int(self.weight)
-			if plus and w < 1000:
+			if plusBtn and w < maxWeight:
 				w += 5
-			if minus and w > 65:
+			if minusBtn and w > minWeight:
 				w -= 5
 			self.weight = str(w)
 
 	def countdown(self, dt):
 		if self.countdownnum > 0:
 			self.countdowninprogress = True
-			self.totalTons = "{0}".format(self.countdownnum)
+			self.totalTons = str(self.countdownnum)
 			self.countdownnum -= 1
 		else:
 			self.totalTons = "GO!"
 			self.countdowninprogress = False
 			Clock.unschedule(self.countdown)
 			Clock.schedule_once(self.buzzer)
-			Clock.schedule_once(self.setnum, 0.5)
-			Clock.schedule_interval(self.timer, 1)
+			Clock.schedule_once(self.setnum, 0.3)
+			Clock.schedule_interval(self.timer, 0.1)
 
 	def setnum(self, dt):
 		self.totalTons = "0"
 
-        def settons(self):
-                self.totalTons = str(self.num * int(self.weight))
+	def settons(self):
+		self.totalTons = str(self.currentReps * int(self.weight))
 
 	def buzzeroff(self, dt):
 		GPIO.output(buzzerPinNum, False)
@@ -112,29 +121,29 @@ class PowerXCounter(GridLayout):
 		if self.countdowninprogress:
 			return
 
-		if self.totalTimeSeconds == 0:
+		if self.totalTimeMilliseconds == 0:
 			self.reset()
 		else:
-			if self.num == 0:
-				Clock.schedule_interval(self.countdown, 1)
-			elif self.num < maxReps or maxReps == 0:
-				self.counter = str(self.num)
-                                self.settons()
-			elif self.num == maxReps:
+			if self.currentReps == 0:
+				Clock.schedule_interval(self.countdown, 0.5)
+			elif self.currentReps < maxReps or maxReps == 0:
+				self.counter = str(self.currentReps)
+				self.settons()
+			elif self.currentReps == maxReps:
 				self.counter = str(maxReps)
-                                self.settons()
-				Clock.unschedule(self.timer, 1)
+				self.settons()
+				Clock.unschedule(self.timer)
 			else:
 				self.reset()
 				return
 
-			self.num += 1
+			self.currentReps += 1
 
 	def timer(self, dt):
-		self.totalTimeSeconds -= 1
+		self.totalTimeMilliseconds -= 100
 		self.timerRunning = True
-		self.timeRemaining = formatTime(self.totalTimeSeconds)
-		if self.totalTimeSeconds == 0:
+		self.timeRemaining = formatTime(self.totalTimeMilliseconds)
+		if self.totalTimeMilliseconds == 0:
 			Clock.unschedule(self.timer)
 			self.buzzerlength = 3
 			self.timerRunning = False
