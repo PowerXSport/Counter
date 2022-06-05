@@ -74,22 +74,29 @@ class PowerXCounter(GridLayout):
 		self.totalTons = "0"
 
 	def checkInput(self, dt):
-		#COUNTER BUTTON PRESS
+		# Keep track of button states
 		btnInput = GPIO.input(buttonPinNum)
-		if btnInput != self.prevBtnInput:
+		plusBtn = GPIO.input(plusButtonPinNum)
+		minusBtn = GPIO.input(minusButtonPinNum)
+
+		btnClicked = self.prevBtnInput != btnInput
+		if btnClicked:
+			# always keep track of the button state
 			self.prevBtnInput = btnInput
-			if not self.countdowninprogress:
+
+			if minusBtn:
+				self.reset()
+			else:
 				self.click()
-		# +/- BUTTON PRESS
-		if not self.timerRunning and not self.countdowninprogress and self.currentReps == 0:
-			plusBtn = GPIO.input(plusButtonPinNum)
-			minusBtn = GPIO.input(minusButtonPinNum)
+
+		elif self.currentReps == 0:
 			w = int(self.weight)
 			if plusBtn and w < maxWeight:
 				w += 5
 			if minusBtn and w > minWeight:
 				w -= 5
 			self.weight = str(w)
+
 
 	def countdown(self, dt):
 		if self.countdownnum > 0:
@@ -121,23 +128,17 @@ class PowerXCounter(GridLayout):
 		if self.countdowninprogress:
 			return
 
-		if self.totalTimeMilliseconds == 0:
-			self.reset()
-		else:
-			if self.currentReps == 0:
-				Clock.schedule_interval(self.countdown, 0.5)
-			elif self.currentReps < maxReps or maxReps == 0:
-				self.counter = str(self.currentReps)
-				self.settons()
-			elif self.currentReps == maxReps:
-				self.counter = str(maxReps)
-				self.settons()
-				Clock.unschedule(self.timer)
-			else:
-				self.reset()
-				return
+		if self.currentReps == 0:
+			Clock.schedule_interval(self.countdown, 0.5)
+		elif self.currentReps < maxReps or maxReps == 0:
+			self.counter = str(self.currentReps)
+			self.settons()
+		elif self.currentReps == maxReps:
+			self.counter = str(maxReps)
+			self.settons()
+			Clock.unschedule(self.timer)
 
-			self.currentReps += 1
+		self.currentReps += 1
 
 	def timer(self, dt):
 		self.totalTimeMilliseconds -= 100
