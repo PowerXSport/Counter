@@ -15,7 +15,7 @@ buzzerPinNum = 12
 totalSeconds = 60
 totalMilliseconds = totalSeconds * 1000
 maxReps = 0
-minWeight = 65
+minWeight = 15
 maxWeight = 700
 
 def gpio_init():
