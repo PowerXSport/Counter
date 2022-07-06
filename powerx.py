@@ -11,6 +11,7 @@ plusButtonPinNum = 13
 minusButtonPinNum = 15
 buttonPinNum = 16
 buzzerPinNum = 12
+hapticMotorPinNum = 10
 
 totalSeconds = 60
 totalMilliseconds = totalSeconds * 1000
@@ -20,10 +21,15 @@ maxWeight = 700
 
 def gpio_init():
 	GPIO.setmode(GPIO.BOARD)
+	
+	# INS
 	GPIO.setup(buttonPinNum, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 	GPIO.setup(plusButtonPinNum, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 	GPIO.setup(minusButtonPinNum, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+
+	# OUTS
 	GPIO.setup(buzzerPinNum, GPIO.OUT)
+	GPIO.setup(hapticMotorPinNum, GPIO.OUT)
 
 
 def formatTime(time): #time is in milliseconds
@@ -65,6 +71,7 @@ class PowerXCounter(GridLayout):
 		self.countdowninprogress = False
 		self.countdownnum = 3
 		self.buzzerlength = 1
+		self.hapticMotorLength = 0.5
 		self.timerRunning = False
 
 		#RESET LABELS
@@ -72,6 +79,8 @@ class PowerXCounter(GridLayout):
 		self.timeRemaining = formatTime(totalMilliseconds)
 		self.weight = str(minWeight)
 		self.totalTons = "0"
+
+		Clock.schedule_once(self.hapticMotor)
 
 	def checkInput(self, dt):
 		# Keep track of button states
@@ -100,12 +109,16 @@ class PowerXCounter(GridLayout):
 
 	def countdown(self, dt):
 		if self.countdownnum > 0:
+			self.hapticMotorLength = 0.2
+			Clock.schedule_once(self.hapticMotor)
 			self.countdowninprogress = True
 			self.totalTons = str(self.countdownnum)
 			self.countdownnum -= 1
 		else:
 			self.totalTons = "GO!"
 			self.countdowninprogress = False
+			self.hapticMotorLength = 1
+			Clock.schedule_once(self.hapticMotor)
 			Clock.unschedule(self.countdown)
 			Clock.schedule_once(self.buzzer)
 			Clock.schedule_once(self.setnum, 0.3)
@@ -123,6 +136,13 @@ class PowerXCounter(GridLayout):
 	def buzzer(self, dt):
 		GPIO.output(buzzerPinNum, True)			
 		Clock.schedule_once(self.buzzeroff, self.buzzerlength)
+
+	def hapticMotorOff(self, dt):
+		GPIO.output(hapticMotorPinNum, False)
+
+	def hapticMotor(self, dt):
+		GPIO.output(hapticMotorPinNum, True)
+		Clock.schedule_once(self.hapticMotorOff, self.hapticMotorLength)
 
 	def click(self):
 		if self.countdowninprogress:
@@ -149,6 +169,11 @@ class PowerXCounter(GridLayout):
 			self.buzzerlength = 3
 			self.timerRunning = False
 			Clock.schedule_once(self.buzzer)
+			self.hapticMotorLength = 1
+			Clock.schedule_once(self.hapticMotor)
+		elif self.totalTimeMilliseconds in [3000, 2000, 1000]:
+			self.hapticMotorLength = 0.5
+			Clock.schedule_once(self.hapticMotor)
 
 class PowerXApp(App):
 	def build(self):
